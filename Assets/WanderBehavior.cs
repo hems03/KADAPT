@@ -28,7 +28,7 @@ public class WanderBehavior : MonoBehaviour {
 
     protected Node ST_ApproachAndFace(GameObject target)
     {
-        Val<Vector3> targPosition = Val.V(() => target.transform.Find("TargetLocation").transform.position);
+        Val<Vector3> targPosition = Val.V(() => target.transform.Find("TargetPosition").transform.position);
         Val<Vector3> actualPosition = Val.V(() => target.transform.position);
         return new Sequence(participant.GetComponent<BehaviorMecanim>().Node_GoTo(targPosition),
                             new LeafWait(250),
@@ -54,31 +54,35 @@ public class WanderBehavior : MonoBehaviour {
 
         return new Sequence(this.ST_ApproachAndFace(victim),
                             new LeafInvoke(()=> { participant.GetComponent<CustomProps>().isShooting = true; }),
-                            participant.GetComponent<BehaviorMecanim>().ST_PlayFaceGesture("FIREBREATH", 1000)
-                             );
+                            participant.GetComponent<BehaviorMecanim>().ST_PlayFaceGesture("FIREBREATH", 1000),
+                            new LeafInvoke(() => { participant.GetComponent<CustomProps>().isShooting = false; }
+                            ));
     }
 
     protected Node AssertRayShot()
     {
-        return new DecoratorLoop(
-            new Sequence(
-                new DecoratorLoop(this.AssertRayShot()),
-                this.DuckVictim(victim)
+       
+        return new DecoratorLoop(new Sequence(new DecoratorInvert(new DecoratorLoop(new DecoratorInvert(new Sequence(this.WaitForShot())))),
+                                 new LeafWait(250),
+                                 this.DuckVictim(victim)
             )
-        );
+                                 
+            );
+
 
     }
     protected Node WaitForShot()
     {
         Val<bool> isShot = Val.V(() => participant.GetComponent<CustomProps>().isShooting);
+
         return new LeafAssert(() => {
+            Debug.Log(isShot.Value);
             return isShot.Value;
         });
     }
 
     protected Node DuckVictim(GameObject victim)
     {
-
         return victim.GetComponent<BehaviorMecanim>().ST_PlayBodyGesture("DUCK",1000);
     }
 }
