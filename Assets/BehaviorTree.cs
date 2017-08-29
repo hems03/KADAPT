@@ -5,7 +5,7 @@ using TreeSharpPlus;
 
 
 
-public class WanderBehavior : MonoBehaviour {
+public class BehaviorTree : MonoBehaviour {
     public Transform wander1;
     public Transform wander2;
     public Transform wander3;
