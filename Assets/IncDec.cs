@@ -15,28 +15,32 @@ public class IncDec : MonoBehaviour {
 
     protected Node BuildTreeRoot()
     {
+        Val<bool> mouse = Val.V(() => Input.GetMouseButton(0));
         return (
-            new DecoratorLoop(
-                new DecoratorInvert(                 
-                    new DecoratorLoop(
-                        new Sequence(
-                            new LeafInvoke(() => Debug.Log(num)),
-                            new LeafWait(1000),
-                            new LeafInvoke(() => num++),
-                            new DecoratorLoop(
-                                new Sequence(
-                                    new LeafAssert(() => Input.GetMouseButton(0)),
-                                    new LeafInvoke(() => Debug.Log(num)),
-                                    new LeafWait(1000),
-                                    new LeafInvoke(() => num--)
+            new DecoratorLoop(                
+                        new SequenceParallel(
+                           new DecoratorInvert(
+                               new DecoratorLoop(
+                                    new Sequence(
+                                        new LeafAssert(() => !mouse.Value),
+                                        new LeafInvoke(() => Debug.Log(num)),
+                                        new LeafWait(1000),
+                                        new LeafInvoke(() => num++)
+                                    )
+                                )
+                           ),
+                           new DecoratorInvert(
+                               new DecoratorLoop(
+                                    new Sequence(
+                                        new LeafAssert(() => mouse.Value),
+                                        new LeafInvoke(() => Debug.Log(num)),
+                                        new LeafWait(1000),
+                                        new LeafInvoke(() => num--)
+                                    )
                                 )
                             )
-                        )
-                    )
-              )
-            
-          )
-                    
+                   )
+              )                    
          );
     }
 
