@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Poll : MonoBehaviour {
+public class Poller : MonoBehaviour {
     public RotationPoll[] rotaters;
 
     const float POLL_RATE = 1f;
