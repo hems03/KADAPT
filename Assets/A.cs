@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class A : RotationPoll {
-
+    
 	// Use this for initialization
 	void Start () {
 		
@@ -14,5 +14,11 @@ public class A : RotationPoll {
         if (!active) return;
         rotate(AXIS.Y);
         perlinNoise(AXIS.X);
+
 	}
+
+    override public string getName()
+    {
+        return "A";
+    }
 }

@@ -2,9 +2,16 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public abstract class RotationPoll : MonoBehaviour {
-    public bool active = false;
 
+
+public abstract class RotationPoll : MonoBehaviour {
+    
+
+   
+
+
+    public bool active = false;
+    public string TAG = "TEMP";
     public enum AXIS {
         X=0,
         Y=1,
@@ -14,11 +21,13 @@ public abstract class RotationPoll : MonoBehaviour {
 
     const int OSCILLATION_ANGLE = 80;
     const int OSCILLATION_SPEED = 4;
-    const int PERLIN_NOISE = 4;
+    const int PERLIN_NOISE = 20;
 
 
     float currDeltaRotation;
     float currRotation;
+    float currPerlinNoise=0f;
+
 
     float left;
     float right;
@@ -30,6 +39,7 @@ public abstract class RotationPoll : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
         if (!active) return;
+
     }
 
    
@@ -38,8 +48,7 @@ public abstract class RotationPoll : MonoBehaviour {
     {
         currDeltaRotation = Time.time * OSCILLATION_SPEED;
         float t = Mathf.Sin(currDeltaRotation) * OSCILLATION_ANGLE;
-        if (t < 0) t = 360 + t;
-        
+        if (t < 0) t = 360 + t;    
         Vector3 currRotation = transform.eulerAngles;
         switch (axis)
         {
@@ -58,9 +67,8 @@ public abstract class RotationPoll : MonoBehaviour {
 
     public void perlinNoise(AXIS axis)
     {
-
-        float s = Mathf.PerlinNoise(transform.eulerAngles.x / 360, transform.eulerAngles.y);
-        s -= .5f;
+        currPerlinNoise = Mathf.PerlinNoise(currPerlinNoise, Time.time);
+        float s = currPerlinNoise-.5f;
         s *= PERLIN_NOISE;
         Vector3 currRotation = transform.eulerAngles;
         switch (axis)
@@ -78,4 +86,7 @@ public abstract class RotationPoll : MonoBehaviour {
         transform.eulerAngles = currRotation;
 
     }
+
+    public abstract string getName();
+    
 }

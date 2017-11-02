@@ -15,4 +15,9 @@ public class C : RotationPoll {
         perlinNoise(AXIS.X);
         perlinNoise(AXIS.Y);
 	}
+
+    override public string getName()
+    {
+        return "C";
+    }
 }
