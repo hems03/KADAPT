@@ -6,51 +6,92 @@ using Accord.Statistics.Models.Markov.Topology;
 using Accord.Statistics.Models.Markov.Learning;
 
 public class Poller : MonoBehaviour {
+
+    
+    int TOP_LEFT = 0;
+    int TOP_MID = 1;
+    int TOP_RIGHT = 2;
+    int MID_LEFT = 3;
+    int MID_MID = 4;
+    int MID_RIGHT = 5;
+    int BOT_LEFT = 6;
+    int BOT_MID = 7;
+    int BOT_RIGHT = 8;
+    int NONE = 9;
+
     public RotationPoll[] rotaters;
     const float POLL_RATE = .1f;
     RotationPoll active = null;
     Coroutine coroutine;
     HiddenMarkovClassifier classifier;
-    int[][] inputSequences =
-    {
-        //Need to train on real-time data then classify
-        new int[] {0,280,288,311,344,21,50,73,79,70,45,10},
-        new int[] {0,1,1,1,1,0,359,357,356,355,354,354,354}
-    };
+    HiddenMarkovClassifierLearning teacher;
+
+    int[][] inputSequences;
 
     int[] outputLabels =
     {
-        0,1
+        0,1,2
     };
 
-    List<int> activeBufferX = new List<int>();
-    List<int> activeBufferY = new List<int>();
-    List<int> activeBufferZ = new List<int>();
+    List<int> activeBufferA = new List<int>();
+    List<int> activeBufferB = new List<int>();
+    List<int> activeBufferC = new List<int>();
+    int bufferIndex = -1;
+    List<int> activeBuffer = null;
+    
 
     // Use this for initialization
     void Start () {
-        
-        ITopology forward = new Forward(states: 2);
-         classifier = new HiddenMarkovClassifier(classes: 2,
-            topology: forward, symbols: 360);
-        var teacher = new HiddenMarkovClassifierLearning(classifier,
+
+    }
+
+    void train()
+    {
+        ITopology forward = new Forward(states: 3);
+        classifier = new HiddenMarkovClassifier(classes: 3,
+           topology: forward, symbols: 9);
+         teacher = new HiddenMarkovClassifierLearning(classifier,
             modelIndex => new BaumWelchLearning(classifier.Models[modelIndex])
             {
-                Tolerance = 0.05, 
-                Iterations = 0     
+                Tolerance = 0.05,
+                Iterations = 0
             });
+        int[] A = activeBufferA.ToArray();
+        int[] B = activeBufferB.ToArray();
+        int[] C = activeBufferC.ToArray();
+        inputSequences = new int[3][] { A, B, C };
+        outputLabels = new int[3] { 0, 1, 2 };
         double error = teacher.Run(inputSequences, outputLabels);
-
     }
 	
 	// Update is called once per frame
 	void Update () {
+
+        if (Input.GetKeyDown("Space"))
+        {
+            train();
+        }
+
         for(int i = 0; i < rotaters.Length; i++)
         {
             if (Input.GetKeyDown("" + i))
             {
                 Debug.Log("New Object Chosen");
                 setActive(rotaters[i]);
+
+                bufferIndex = i;
+                if (bufferIndex == 0)
+                {
+                    activeBuffer = activeBufferA;
+                }else if (bufferIndex == 1)
+                {
+                    activeBuffer = activeBufferB;
+                }else if (bufferIndex == 2)
+                {
+                    activeBuffer = activeBufferC;
+                }
+
+
                 if (coroutine != null) StopCoroutine(coroutine);
 
                 coroutine=StartCoroutine("PollRotation");
@@ -78,7 +119,7 @@ public class Poller : MonoBehaviour {
         while (active != null)
         {
             //Debug.Log(active.getName()+" Rotation: " + active.transform.eulerAngles +"Count: "+activeBufferX.Count);
-            if (activeBufferX.Count > 20)
+            /*if (activeBufferX.Count > 20)
             {
                 int res=classifier.Decide(activeBufferX.ToArray());
                 Debug.Log("Pred X: " + res);
@@ -104,7 +145,67 @@ public class Poller : MonoBehaviour {
             activeBufferY.Add(y);
 
             int z = (int)Mathf.Floor(active.transform.eulerAngles.z);
-            activeBufferZ.Add(z);
+            activeBufferZ.Add(z);*/
+            Vector3 rotation = active.transform.eulerAngles;
+            if (rotation.x > 180)
+            {
+                rotation.x -= 360;
+            }
+
+            if (rotation.y > 180)
+            {
+                rotation.y -= 360;
+            }
+            int state = NONE;
+
+            if (rotation.x > 20.0 && rotation.x < 60)
+            {
+                if (rotation.y > 20.0&&rotation.y<60.0)
+                {
+                    state = BOT_RIGHT;
+                }
+                else if (rotation.y < -20&&rotation.y>-60)
+                {
+                    state = BOT_LEFT;
+                    
+                }
+                else
+                {
+                    state = BOT_MID;
+                }
+            }
+            else if (rotation.x < -20 && rotation.x > -60)
+            {
+                if (rotation.y > 20.0)
+                {
+                    state =TOP_RIGHT;
+                }
+                else if (rotation.y < -20)
+                {
+                    state = TOP_LEFT;
+                }
+                else
+                {
+                    state = TOP_MID;
+                }
+            }
+            else
+            {
+                if (rotation.y > 20.0&&rotation.y<90)
+                {
+                    state = MID_RIGHT;
+                }
+                else if (rotation.y < -20&&rotation.y>-90)
+                {
+                    state = MID_LEFT;
+                }
+                else
+                {
+                    state = MID_MID;
+                }
+            }
+            activeBuffer.Add(state);
+            Debug.Log("State "+bufferIndex+":" + state+" "+rotation );
             yield return new WaitForSeconds(POLL_RATE);   
         }      
     }
