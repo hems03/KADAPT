@@ -4,6 +4,8 @@ using UnityEngine;
 using Accord.Statistics.Models.Markov;
 using Accord.Statistics.Models.Markov.Topology;
 using Accord.Statistics.Models.Markov.Learning;
+using Accord.IO;
+using Affdex;
 
 public class Poller : MonoBehaviour {
 
@@ -26,6 +28,11 @@ public class Poller : MonoBehaviour {
     HiddenMarkovClassifier classifier;
     HiddenMarkovClassifierLearning teacher;
 
+    Transform mainCamera;
+    CameraInput cameraInput;
+    string cameraName;
+    string currentCameraName = "";
+
     int[][] inputSequences;
 
     int[] outputLabels =
@@ -42,6 +49,22 @@ public class Poller : MonoBehaviour {
 
     // Use this for initialization
     void Start () {
+        load();
+        active = rotaters[0];
+        activeBuffer = activeBufferA;
+        coroutine = StartCoroutine("PollRotation");
+        StartCoroutine("Training");
+
+    }
+
+    void load()
+    {
+        classifier = Serializer.Load<HiddenMarkovClassifier>("INPUT");
+        teacher = new HiddenMarkovClassifierLearning(classifier, modelIndex => new BaumWelchLearning(classifier.Models[modelIndex])
+        {
+            Tolerance = 0.1,
+            Iterations = 0
+        });
 
     }
 
@@ -53,7 +76,7 @@ public class Poller : MonoBehaviour {
          teacher = new HiddenMarkovClassifierLearning(classifier,
             modelIndex => new BaumWelchLearning(classifier.Models[modelIndex])
             {
-                Tolerance = 0.05,
+                Tolerance = 0.1,
                 Iterations = 0
             });
         int[] A = activeBufferA.ToArray();
@@ -62,14 +85,34 @@ public class Poller : MonoBehaviour {
         inputSequences = new int[3][] { A, B, C };
         outputLabels = new int[3] { 0, 1, 2 };
         double error = teacher.Run(inputSequences, outputLabels);
+        Serializer.Save<HiddenMarkovClassifier>(teacher.Classifier,"INPUT");
+        activeBufferA.Clear();
+        activeBufferB.Clear();
+        activeBufferC.Clear();
+        Debug.Log("Trained Model");
     }
-	
-	// Update is called once per frame
-	void Update () {
 
-        if (Input.GetKeyDown("Space"))
+    void Awake()
+    {
+        mainCamera = GameObject.FindGameObjectWithTag("MainCamera").transform;
+        cameraInput = mainCamera.GetComponent<CameraInput>();
+    }
+
+    // Update is called once per frame
+    void Update () {
+
+        
+
+        if (Input.GetKeyDown("space"))
         {
+            Debug.Log("Training");
+            active.active = false;
             train();
+        }
+
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            load();
         }
 
         for(int i = 0; i < rotaters.Length; i++)
@@ -104,48 +147,27 @@ public class Poller : MonoBehaviour {
                 rotaters[i].active = false;
             }
         }
+
+       
         if (active != null) Debug.DrawLine(active.transform.position,active.transform.forward);
     }
 
     void setActive(RotationPoll toBeActive)
     {
         active = toBeActive;
-        toBeActive.active = true;
+        if (toBeActive != null)
+        {
+            toBeActive.active = true;
+        }
+       
   
     }
 
     IEnumerator PollRotation()
     {
+        //Debug.Log("Coroutine");
         while (active != null)
         {
-            //Debug.Log(active.getName()+" Rotation: " + active.transform.eulerAngles +"Count: "+activeBufferX.Count);
-            /*if (activeBufferX.Count > 20)
-            {
-                int res=classifier.Decide(activeBufferX.ToArray());
-                Debug.Log("Pred X: " + res);
-                activeBufferX.Clear();
-            }
-            if (activeBufferY.Count > 20)
-            {
-                int res=classifier.Decide(activeBufferY.ToArray());
-          
-                Debug.Log("Pred Y: " + res);
-                activeBufferY.Clear();
-            }
-            if (activeBufferZ.Count > 20)
-            {
-                int res=classifier.Decide(activeBufferZ.ToArray());
-                Debug.Log("Pred Z: "+res);
-                activeBufferZ.Clear();
-            }
-
-            int x = (int)Mathf.Floor(active.transform.eulerAngles.x);
-            activeBufferX.Add(x);
-            int y = (int)Mathf.Floor(active.transform.eulerAngles.y);
-            activeBufferY.Add(y);
-
-            int z = (int)Mathf.Floor(active.transform.eulerAngles.z);
-            activeBufferZ.Add(z);*/
             Vector3 rotation = active.transform.eulerAngles;
             if (rotation.x > 180)
             {
@@ -205,8 +227,39 @@ public class Poller : MonoBehaviour {
                 }
             }
             activeBuffer.Add(state);
-            Debug.Log("State "+bufferIndex+":" + state+" "+rotation );
+
+
+            if (activeBuffer.Count > 20&&active.active==false)
+            {
+                int pred = classifier.Decide(activeBuffer.ToArray());
+                activeBuffer.Clear();
+                Debug.Log("Prediction: " + pred);
+            }else
+            {
+                if (active.active)
+                {
+                    Debug.Log("State " + bufferIndex + ":" + state + " " + rotation);
+                }
+               
+            }
             yield return new WaitForSeconds(POLL_RATE);   
         }      
+    }
+
+    IEnumerator Training()
+    {
+        setActive(rotaters[0]);
+       
+        activeBuffer = activeBufferA;
+        yield return new WaitForSeconds(5);
+        setActive(rotaters[1]);
+        activeBuffer = activeBufferB;
+        yield return new WaitForSeconds(5);
+        setActive(rotaters[2]);
+        activeBuffer = activeBufferC;
+        yield return new WaitForSeconds(5);
+        setActive(null);
+        train();
+       
     }
 }
