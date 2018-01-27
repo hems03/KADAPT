@@ -20,9 +20,18 @@ public class Poller : MonoBehaviour {
     int BOT_MID = 7;
     int BOT_RIGHT = 8;
     int NONE = 9;
-
+    
+   
     public RotationPoll[] rotaters;
+    public int trainTimeA = 5;
+    public int trainTimeB = 5;
+    public int trainTimeC = 5;
+
+
     const float POLL_RATE = .1f;
+    const int SENSING_RATE = 20;
+    
+
     RotationPoll active = null;
     Coroutine coroutine;
     HiddenMarkovClassifier classifier;
@@ -30,6 +39,7 @@ public class Poller : MonoBehaviour {
 
     Transform mainCamera;
     CameraInput cameraInput;
+    int bufferSize;
     string cameraName;
     string currentCameraName = "";
 
@@ -40,15 +50,19 @@ public class Poller : MonoBehaviour {
         0,1,2
     };
 
-    List<int> activeBufferA = new List<int>();
-    List<int> activeBufferB = new List<int>();
-    List<int> activeBufferC = new List<int>();
+    LinkedList<int> activeBufferA = new LinkedList<int>();
+    LinkedList<int> activeBufferB = new LinkedList<int>();
+    LinkedList<int> activeBufferC = new LinkedList<int>();
+    LinkedList<int> activeBufferD = new LinkedList<int>();
     int bufferIndex = -1;
-    List<int> activeBuffer = null;
+    LinkedList<int> activeBuffer = null;
+
+
     
 
     // Use this for initialization
     void Start () {
+        bufferSize= trainTimeA * SENSING_RATE;
         load();
         active = rotaters[0];
         activeBuffer = activeBufferA;
@@ -68,10 +82,24 @@ public class Poller : MonoBehaviour {
 
     }
 
+    int[] toArray(LinkedList<int> ll)
+    {
+        
+        int[] res = new int[bufferSize];
+
+        for(int i = 0; i < bufferSize && ll.Count != 0; i++)
+        {
+            res[i] = ll.First.Value;
+            ll.RemoveFirst();
+        }
+
+        return res;
+    }
+
     void train()
     {
-        ITopology forward = new Forward(states: 3);
-        classifier = new HiddenMarkovClassifier(classes: 3,
+        ITopology forward = new Forward(states: 4);
+        classifier = new HiddenMarkovClassifier(classes: 4,
            topology: forward, symbols: 9);
          teacher = new HiddenMarkovClassifierLearning(classifier,
             modelIndex => new BaumWelchLearning(classifier.Models[modelIndex])
@@ -79,16 +107,19 @@ public class Poller : MonoBehaviour {
                 Tolerance = 0.1,
                 Iterations = 0
             });
-        int[] A = activeBufferA.ToArray();
-        int[] B = activeBufferB.ToArray();
-        int[] C = activeBufferC.ToArray();
-        inputSequences = new int[3][] { A, B, C };
-        outputLabels = new int[3] { 0, 1, 2 };
+        int[] A = toArray(activeBufferA);
+        int[] B = toArray(activeBufferB);
+        int[] C = toArray(activeBufferC);
+        int[] D = toArray(activeBufferD);
+
+        inputSequences = new int[4][] { A, B, C,D };
+        outputLabels = new int[4] { 0, 1, 2,3 };
         double error = teacher.Run(inputSequences, outputLabels);
         Serializer.Save<HiddenMarkovClassifier>(teacher.Classifier,"INPUT");
         activeBufferA.Clear();
         activeBufferB.Clear();
         activeBufferC.Clear();
+        activeBufferD.Clear();
         Debug.Log("Trained Model");
     }
 
@@ -226,12 +257,12 @@ public class Poller : MonoBehaviour {
                     state = MID_MID;
                 }
             }
-            activeBuffer.Add(state);
+            activeBuffer.AddLast(state);
 
 
             if (activeBuffer.Count > 20&&active.active==false)
             {
-                int pred = classifier.Decide(activeBuffer.ToArray());
+                int pred = classifier.Decide(toArray(activeBuffer));
                 activeBuffer.Clear();
                 Debug.Log("Prediction: " + pred);
             }else
@@ -251,13 +282,16 @@ public class Poller : MonoBehaviour {
         setActive(rotaters[0]);
        
         activeBuffer = activeBufferA;
-        yield return new WaitForSeconds(5);
+        yield return new WaitForSeconds(trainTimeA);
         setActive(rotaters[1]);
         activeBuffer = activeBufferB;
-        yield return new WaitForSeconds(5);
+        yield return new WaitForSeconds(trainTimeB);
         setActive(rotaters[2]);
         activeBuffer = activeBufferC;
-        yield return new WaitForSeconds(5);
+        yield return new WaitForSeconds(trainTimeC);
+        setActive(rotaters[3]);
+        activeBuffer = activeBufferD;
+        yield return new WaitForSeconds(trainTimeC); //NEED TO CHANGE TRAINING TIME
         setActive(null);
         train();
        

@@ -22,47 +22,130 @@ public class FaceDetection : ImageResultsListener {
     int BOT_RIGHT = 8;
     int NONE = 9;
 
+
+    
+    public int trainTime = 5;
+    const int SENSING_RATE = 2;
+    const int PROCESSING_RATE = SENSING_RATE * 2;
     int currPred = 2;
+    
+    LinkedList<int> activeBuffer = new LinkedList<int>();
 
-    List<int> activeBuffer = new List<int>();
-
-    HiddenMarkovClassifier classifier;
+    
 
     public FeaturePoint[] featurePointsList;
 
+    int[] toArray(LinkedList<int> ll)
+    {
+        int bufferSize = trainTime * SENSING_RATE*10; //Need to change
+        int[] res = new int[bufferSize];
+
+        for (int i = 0; i < bufferSize && ll.Count != 0; i++)
+        {
+            res[i] = ll.First.Value;
+            ll.RemoveFirst();
+        }
+
+        return res;
+    }
+
     public override void onFaceFound(float timestamp, int faceId)
     {
-        classifier = Serializer.Load<HiddenMarkovClassifier>("INPUT");
         Debug.Log("Found face");
+        
+        
     }
 
     public override void onFaceLost(float timestamp, int faceId)
     {
+        activeBuffer.Clear();
         Debug.Log("Lost the face");
     }
 
     public override void onImageResults(Dictionary<int, Face> faces)
     {
-        Debug.Log("Prediction:"+currPred);
-
+        //Debug.Log(activeBuffer.Count);
+        if (faces.Count == 0)
+        {
+            activeBuffer.Clear();
+            return;
+        }
+        //Debug.Log("Prediction:" + currPred);
+        Face face = null;
         foreach (KeyValuePair<int, Face> pair in faces)
         {
-            int FaceId = pair.Key;  
-            Face face = pair.Value;    
-            //Debug.Log(face.Measurements.Orientation.eulerAngles);
-            int state = findState(face.Measurements.Orientation.eulerAngles);
-            activeBuffer.Add(state);
-            if (activeBuffer.Count > 20)
+            if (face == null)
             {
-                int pred = classifier.Decide(activeBuffer.ToArray());
-                activeBuffer.Clear();
-                currPred = pred;
-                //Debug.Log("Prediction: " + pred);
+                face = pair.Value;
+                continue;
             }
+
+            Face curr = pair.Value;
+            Rect currRec = boundingBox(curr);
+            Rect targetRec = boundingBox(face);
+
+            float currArea = currRec.height * currRec.width;
+            float targetArea = targetRec.height * targetRec.width;
+            if (currArea > targetArea) face = curr;
+        }
+        int state = findState(face.Measurements.Orientation.eulerAngles);
+        activeBuffer.AddLast(state);
+
+        int bufferSize = trainTime * SENSING_RATE;
+        if (activeBuffer.Count > bufferSize)
+        {
             
-            featurePointsList = face.FeaturePoints;
-        }       
+            activeBuffer.RemoveFirst();
+        }
+
+        
+
+        featurePointsList = face.FeaturePoints;
     }
+
+    public int[] getBuffer()
+    {
+        return toArray(activeBuffer);
+    }
+
+    Rect boundingBox(Face face)
+    {
+        FeaturePoint[] featurePoints = {
+                face.FeaturePoints[2],  //chinTip
+                face.FeaturePoints[0],   //rightTopJaw
+                face.FeaturePoints[4],    //leftTopJaw
+                face.FeaturePoints[6],   //rightBrowCenter
+                face.FeaturePoints[9]    //leftBrowCenter
+            };
+
+        float minx = float.MaxValue;
+        float xmax = 0;
+        float miny = float.MaxValue;
+        float ymax = 0;
+        foreach (FeaturePoint featurePoint in featurePoints)
+        {
+            if (featurePoint.x < minx)
+            {
+                minx = featurePoint.x;
+            }
+            if (featurePoint.x > xmax)
+            {
+                xmax = featurePoint.x;
+            }
+            if (featurePoint.y < miny)
+            {
+                miny = featurePoint.y;
+            }
+            if (featurePoint.y > ymax)
+            {
+                ymax = featurePoint.y;
+            }
+        }
+        return Rect.MinMaxRect(minx, miny, xmax, ymax);
+
+    }
+
+
     private int findState(Vector3 rotation)
     {
         
@@ -126,4 +209,6 @@ public class FaceDetection : ImageResultsListener {
 
         return state;
     }
+
+    
 }

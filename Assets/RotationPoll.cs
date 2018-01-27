@@ -18,10 +18,15 @@ public abstract class RotationPoll : MonoBehaviour {
         Z=2
     }
 
+    int bufferSize;
 
-    const int OSCILLATION_ANGLE = 80;
+
+    const int OSCILLATION_ANGLE = 40;
     const int OSCILLATION_SPEED = 4;
     const int PERLIN_NOISE = 20;
+
+    const double PERLIN_A = .5;
+    double PERLIN_B;
 
 
     float currDeltaRotation;
@@ -33,13 +38,13 @@ public abstract class RotationPoll : MonoBehaviour {
     float right;
 	// Use this for initialization
 	void Start () {
+        PERLIN_B= Random.Range(0f, 1f);
         left = 360 - OSCILLATION_ANGLE;
         right = OSCILLATION_ANGLE;
 	}
 	// Update is called once per frame
 	void Update () {
         if (!active) return;
-
     }
 
    
@@ -67,7 +72,8 @@ public abstract class RotationPoll : MonoBehaviour {
 
     public void perlinNoise(AXIS axis)
     {
-        currPerlinNoise = Mathf.PerlinNoise(currPerlinNoise, Time.time);
+        float input = (float)PERLIN_A * currPerlinNoise + (float)PERLIN_B;
+        currPerlinNoise = Mathf.PerlinNoise(input,Time.time);
         float s = currPerlinNoise-.5f;
         s *= PERLIN_NOISE;
         Vector3 currRotation = transform.eulerAngles;
