@@ -10,7 +10,7 @@ using Accord.IO;
 
 
 
-public class FaceDetection : ImageResultsListener {
+public class FaceDetection : MonoBehaviour, FaceSplitter.FaceListener {
     int TOP_LEFT = 0;
     int TOP_MID = 1;
     int TOP_RIGHT = 2;
@@ -35,6 +35,12 @@ public class FaceDetection : ImageResultsListener {
 
     public FeaturePoint[] featurePointsList;
 
+    public FaceDetection()
+    {
+        FaceSplitter.registerListener(this);
+    }
+
+
     int[] toArray(LinkedList<int> ll)
     {
         int bufferSize = trainTime * SENSING_RATE*10; //Need to change
@@ -49,20 +55,20 @@ public class FaceDetection : ImageResultsListener {
         return res;
     }
 
-    public override void onFaceFound(float timestamp, int faceId)
+    public void onFaceFound(float timestamp, int faceId)
     {
         Debug.Log("Found face");
         
         
     }
 
-    public override void onFaceLost(float timestamp, int faceId)
+    public void onFaceLost(float timestamp, int faceId)
     {
         activeBuffer.Clear();
         Debug.Log("Lost the face");
     }
 
-    public override void onImageResults(Dictionary<int, Face> faces)
+    public void onImageResults(Dictionary<int, Face> faces)
     {
         //Debug.Log(activeBuffer.Count);
         if (faces.Count == 0)
@@ -97,7 +103,7 @@ public class FaceDetection : ImageResultsListener {
             
             activeBuffer.RemoveFirst();
         }
-
+        //Debug.Log("State: " + state + " Size: " + bufferSize);
         
 
         featurePointsList = face.FeaturePoints;
