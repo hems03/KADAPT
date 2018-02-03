@@ -23,9 +23,9 @@ public abstract class RotationPoll : MonoBehaviour {
 
     const int OSCILLATION_ANGLE = 40;
     const int OSCILLATION_SPEED = 4;
-    const int PERLIN_NOISE = 20;
+    const int PERLIN_NOISE = 30;
 
-    const double PERLIN_A = .5;
+    const double PERLIN_A = 1.35;
     double PERLIN_B;
 
 

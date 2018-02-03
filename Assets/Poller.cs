@@ -289,9 +289,6 @@ public class Poller : MonoBehaviour {
         setActive(rotaters[2]);
         activeBuffer = activeBufferC;
         yield return new WaitForSeconds(trainTimeC);
-        setActive(rotaters[3]);
-        activeBuffer = activeBufferD;
-        yield return new WaitForSeconds(trainTimeC); //NEED TO CHANGE TRAINING TIME
         setActive(null);
         train();
        
